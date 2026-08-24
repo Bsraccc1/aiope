@@ -420,7 +420,7 @@ class StreamingOrchestrator(
         rawMessages.add(
           JSONObject().apply {
             put("role", "assistant")
-            put("content", JSONObject.NULL)
+            put("content", "")
             put(
               "tool_calls",
               JSONArray().apply {
