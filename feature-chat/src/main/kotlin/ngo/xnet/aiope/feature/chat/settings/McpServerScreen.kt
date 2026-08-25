@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,9 +23,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +70,7 @@ internal fun McpServerScreen(toolStore: ToolStore, onBack: () -> Unit) {
   Scaffold(containerColor = if (_bgActive1) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.background, contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface, topBar = {
     TopAppBar(
       colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = if (ngo.xnet.aiope.feature.chat.theme.LocalThemeState.current.useBackground) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.surface),
-      title = { Text("MCP Servers") },
+      title = { Text("MCP Servers", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
       navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
       actions = {
         IconButton(onClick = { showJsonImport = true }) { Icon(Icons.Default.Edit, "JSON") }
@@ -154,14 +157,14 @@ private fun mcpStatusLabel(s: McpStatus) = when (s) {
 @Composable
 private fun McpPill(text: String, color: androidx.compose.ui.graphics.Color) {
   Surface(
-    shape = RoundedCornerShape(999.dp),
+    shape = CircleShape,
     color = color.copy(alpha = 0.12f),
     border = androidx.compose.foundation.BorderStroke(0.5.dp, color.copy(alpha = 0.35f)),
   ) {
     Text(
       text,
       Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-      fontSize = 11.sp,
+      style = MaterialTheme.typography.labelMedium,
       fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
       color = color,
     )
@@ -356,8 +359,8 @@ private fun McpServerDetailPage(
         var toolEnabled by remember(tool.name) { mutableStateOf(toolStore.isToolEnabled(tool.name)) }
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
           Column(Modifier.weight(1f)) {
-            Text(tool.name, fontSize = 13.sp)
-            if (tool.description.isNotBlank()) Text(tool.description, fontSize = 11.sp, color = cs.onSurfaceVariant, maxLines = 2)
+            Text(tool.name, style = MaterialTheme.typography.bodySmall)
+            if (tool.description.isNotBlank()) Text(tool.description, style = MaterialTheme.typography.labelMedium, color = cs.onSurfaceVariant, maxLines = 2)
           }
           Switch(checked = toolEnabled, onCheckedChange = {
             toolEnabled = it
@@ -402,7 +405,7 @@ private fun McpJsonImportSheet(onDismiss: () -> Unit, toolStore: ToolStore) {
         onValueChange = { json = it },
         modifier = Modifier.fillMaxWidth().height(200.dp),
         label = { Text("{\"mcpServers\": {...}}") },
-        textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
       )
       Spacer(Modifier.height(8.dp))
       if (result.isNotBlank()) {

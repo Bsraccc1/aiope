@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -97,7 +99,7 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
     topBar = {
       TopAppBar(
         colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = if (ngo.xnet.aiope.feature.chat.theme.LocalThemeState.current.useBackground) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.surface),
-        title = { Text("Theme") },
+        title = { Text("Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
         navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
       )
     },
@@ -112,7 +114,7 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
       SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         modes.forEachIndexed { i, mode ->
           SegmentedButton(selected = themeMode == mode, onClick = { scope.launch { prefs.set(ThemePrefs.THEME_MODE, mode) } }, shape = SegmentedButtonDefaults.itemShape(i, modes.size)) {
-            Text(mode.replaceFirstChar { it.uppercase() }, fontSize = 12.sp)
+            Text(mode.replaceFirstChar { it.uppercase() }, style = MaterialTheme.typography.bodySmall)
           }
         }
       }
@@ -120,7 +122,7 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
       if (themeMode == "custom") {
         // ── Accent Colors ──
         SectionHeader("Accent Colors")
-        Text("Primary", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Primary", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         ColorRow(
           selected = primaryColor,
           onPick = {
@@ -132,7 +134,7 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
           onCustom = { pickerState = "primary" to (primaryColor ?: 0xFF2979FF.toInt()) },
         )
         Spacer(Modifier.height(4.dp))
-        Text("Secondary", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Secondary", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         ColorRow(
           selected = secondaryColor,
           onPick = {
@@ -159,13 +161,13 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(4.dp))
         ToggleRow("Custom text colors", useCustomText) { scope.launch { prefs.set(ThemePrefs.USE_CUSTOM_TEXT, it) } }
         if (useCustomText) {
-          Text("Primary text", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("Primary text", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           ColorRow(
             selected = primaryTextColor,
             onPick = { scope.launch { prefs.set(ThemePrefs.PRIMARY_TEXT_COLOR, it) } },
             onCustom = { pickerState = "primaryText" to (primaryTextColor ?: 0xFFFFFFFF.toInt()) },
           )
-          Text("Secondary text", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("Secondary text", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           ColorRow(
             selected = secondaryTextColor,
             onPick = { scope.launch { prefs.set(ThemePrefs.SECONDARY_TEXT_COLOR, it) } },
@@ -179,42 +181,42 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
         SectionHeader("Bubble Colors")
         ToggleRow("Custom bubble colors", useCustomBubbles) { scope.launch { prefs.set(ThemePrefs.USE_CUSTOM_BUBBLES, it) } }
         if (useCustomBubbles) {
-          Text("User bubble", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("User bubble", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           ColorRow(
             selected = userBubbleColor,
             onPick = { scope.launch { prefs.set(ThemePrefs.USER_BUBBLE_COLOR, it) } },
             onCustom = { pickerState = "userBubble" to (userBubbleColor ?: 0xFF2979FF.toInt()) },
           )
-          Text("User text", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("User text", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           ColorRow(
             selected = userTextColor,
             onPick = { scope.launch { prefs.set(ThemePrefs.USER_TEXT_COLOR, it) } },
             onCustom = { pickerState = "userText" to (userTextColor ?: 0xFFFFFFFF.toInt()) },
           )
           Spacer(Modifier.height(4.dp))
-          Text("AI bubble", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("AI bubble", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           ColorRow(
             selected = aiBubbleColor,
             onPick = { scope.launch { prefs.set(ThemePrefs.AI_BUBBLE_COLOR, it) } },
             onCustom = { pickerState = "aiBubble" to (aiBubbleColor ?: 0xFF37474F.toInt()) },
           )
           Spacer(Modifier.height(4.dp))
-          Text("Agent report bubble", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("Agent report bubble", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           ColorRow(
             selected = agentReportBubbleColor,
             onPick = { scope.launch { prefs.set(ThemePrefs.AGENT_REPORT_BUBBLE_COLOR, it) } },
             onCustom = { pickerState = "agentReport" to (agentReportBubbleColor ?: 0xFF1A237E.toInt()) },
           )
-          Text("AI text", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("AI text", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           ColorRow(
             selected = aiTextColor,
             onPick = { scope.launch { prefs.set(ThemePrefs.AI_TEXT_COLOR, it) } },
             onCustom = { pickerState = "aiText" to (aiTextColor ?: 0xFFFFFFFF.toInt()) },
           )
           Spacer(Modifier.height(4.dp))
-          Text("User bubble opacity: ${(userBubbleOpacity * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("User bubble opacity: ${(userBubbleOpacity * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           Slider(value = userBubbleOpacity, onValueChange = { scope.launch { prefs.set(ThemePrefs.USER_BUBBLE_OPACITY, it) } }, valueRange = 0.05f..1f)
-          Text("AI bubble opacity: ${(aiBubbleOpacity * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+          Text("AI bubble opacity: ${(aiBubbleOpacity * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           Slider(value = aiBubbleOpacity, onValueChange = { scope.launch { prefs.set(ThemePrefs.AI_BUBBLE_OPACITY, it) } }, valueRange = 0.05f..1f)
         }
       }
@@ -228,20 +230,20 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
           OutlinedButton(onClick = { mediaPicker.launch("*/*") }) { Text("Pick media") }
           if (backgroundUri != null) {
-            Text(if (backgroundMediaType == "video") "Video set" else "Image set", fontSize = 12.sp, color = Color(0xFF4CAF50))
+            Text(if (backgroundMediaType == "video") "Video set" else "Image set", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
           }
         }
-        Text("Opacity", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Opacity", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Slider(value = backgroundOpacity, onValueChange = { scope.launch { prefs.set(ThemePrefs.BACKGROUND_OPACITY, it) } }, valueRange = 0.05f..1f)
         if (backgroundMediaType == "video") {
           ToggleRow("Mute video", videoMuted) { scope.launch { prefs.set(ThemePrefs.VIDEO_MUTED, it) } }
           ToggleRow("Loop video", videoLoop) { scope.launch { prefs.set(ThemePrefs.VIDEO_LOOP, it) } }
         }
-        Text("Rotation", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Rotation", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
           listOf(0, 90, 180, 270).forEachIndexed { i, deg ->
             SegmentedButton(selected = videoRotation == deg, onClick = { scope.launch { prefs.set(ThemePrefs.VIDEO_ROTATION, deg) } }, shape = SegmentedButtonDefaults.itemShape(i, 4)) {
-              Text("$deg°", fontSize = 12.sp)
+              Text("$deg°", style = MaterialTheme.typography.bodySmall)
             }
           }
         }
@@ -261,7 +263,7 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
       ToggleRow("Show status tags", showStatusTags) { scope.launch { prefs.set(ThemePrefs.SHOW_STATUS_TAGS, it) } }
       ToggleRow("Show tool activity", showToolActivity) { scope.launch { prefs.set(ThemePrefs.SHOW_TOOL_ACTIVITY, it) } }
       Spacer(Modifier.height(4.dp))
-      Text("UI opacity: ${(uiOpacity * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+      Text("UI opacity: ${(uiOpacity * 100).toInt()}%", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
       Slider(value = uiOpacity, onValueChange = { scope.launch { prefs.set(ThemePrefs.UI_OPACITY, it) } }, valueRange = 0.1f..1f)
 
       Spacer(Modifier.height(24.dp))
@@ -309,13 +311,20 @@ fun ThemeSettingsScreen(onBack: () -> Unit) {
 
 @Composable
 private fun SectionHeader(text: String) {
-  Text(text, fontSize = 14.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 8.dp))
+  Text(
+    text.uppercase(),
+    style = MaterialTheme.typography.labelMedium,
+    fontWeight = FontWeight.SemiBold,
+    letterSpacing = 0.8.sp,
+    color = MaterialTheme.colorScheme.onSurfaceVariant,
+    modifier = Modifier.padding(top = 16.dp, bottom = 2.dp),
+  )
 }
 
 @Composable
 private fun ToggleRow(label: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
   Row(Modifier.fillMaxWidth().clickable { onToggle(!checked) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-    Text(label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+    Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
     Switch(checked = checked, onCheckedChange = onToggle)
   }
 }
@@ -341,7 +350,7 @@ private fun ColorRow(selected: Int?, onPick: (Int) -> Unit, onCustom: () -> Unit
         .clickable(onClick = onCustom),
       contentAlignment = Alignment.Center,
     ) {
-      Text("+", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
+      Text("+", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleLarge)
     }
   }
 }

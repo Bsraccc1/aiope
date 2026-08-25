@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import ngo.xnet.aiope.feature.chat.ui.CuORadius
 import android.graphics.Color as AndroidColor
 
 /**
@@ -89,8 +90,8 @@ fun ColorPickerDialog(
       Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Live preview
         Box(
-          Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(8.dp))
-            .background(current).border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp)),
+          Modifier.fillMaxWidth().height(44.dp).clip(RoundedCornerShape(CuORadius.xs))
+            .background(current).border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(CuORadius.xs)),
         )
 
         // Hue square: X = hue, Y = brightness
@@ -164,9 +165,9 @@ private fun HueSquare(
   }
 
   Box(
-    Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(8.dp))
+    Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(CuORadius.xs))
       .background(hueBrush)
-      .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+      .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(CuORadius.xs))
       .pointerInput(hue, brightness) {
         detectDragGestures { change, _ ->
           change.consume()

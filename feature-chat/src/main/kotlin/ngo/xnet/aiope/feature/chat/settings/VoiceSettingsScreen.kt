@@ -7,10 +7,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 private const val PREFS_NAME = "voice_settings"
@@ -60,7 +62,7 @@ fun VoiceSettingsScreen(onBack: () -> Unit) {
     contentColor = MaterialTheme.colorScheme.onSurface,
     topBar = {
       TopAppBar(
-        title = { Text("Voice") },
+        title = { Text("Voice", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = if (theme.useBackground) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.surface),
         navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
       )

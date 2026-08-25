@@ -10,10 +10,11 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +22,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -46,10 +48,10 @@ fun ScannerScreen(onBack: () -> Unit) {
     containerColor = MaterialTheme.colorScheme.background,
     topBar = {
       TopAppBar(
-        title = { Text("Network Scanner") },
+        title = { Text("Network Scanner", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
         navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
         actions = {
-          IconButton(onClick = { showCustom = true }) { Icon(Icons.Default.Tune, "Custom") }
+          IconButton(onClick = { showCustom = true }) { Icon(Icons.Default.Build, "Custom") }
           IconButton(onClick = { showDns = true }) { Icon(Icons.Default.Public, "DNS") }
           IconButton(onClick = {
             scanner.launchFetchWanIp()
@@ -68,8 +70,8 @@ fun ScannerScreen(onBack: () -> Unit) {
           Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column {
               val lanText = if (state.localIps.size > 1) state.localIps.joinToString(", ") else state.localIp ?: "..."
-              Text("LAN: $lanText", fontFamily = FontFamily.Monospace, fontSize = 12.sp)
-              Text("WAN: ${state.wanIp ?: "..."}", fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+              Text("LAN: $lanText", fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+              Text("WAN: ${state.wanIp ?: "..."}", fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
             }
           }
         }
@@ -124,7 +126,7 @@ private fun HostRow(host: HostInfo, onClick: () -> Unit) {
   ListItem(
     modifier = Modifier.clickable(onClick = onClick),
     headlineContent = {
-      Text(host.ip, fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+      Text(host.ip, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium)
     },
     supportingContent = {
       val info = buildString {
@@ -171,7 +173,7 @@ private fun HostDetailSheet(host: HostInfo, scanner: NetworkScanner, onDismiss: 
       Column(Modifier.fillMaxWidth().padding(24.dp).padding(bottom = 32.dp).verticalScroll(rememberScrollState())) {
         Text(host.ip, style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Monospace)
         Spacer(Modifier.height(4.dp))
-        host.mac?.let { Text("MAC: $it", fontFamily = FontFamily.Monospace, fontSize = 13.sp) }
+        host.mac?.let { Text("MAC: $it", fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
         host.vendor?.let { Text("Vendor: $it", style = MaterialTheme.typography.bodyMedium) }
         if (host.isGateway) Text("⭐ Gateway", color = MaterialTheme.colorScheme.primary)
 
@@ -218,9 +220,9 @@ private fun HostDetailSheet(host: HostInfo, scanner: NetworkScanner, onDismiss: 
           Spacer(Modifier.height(8.dp))
           host.openPorts.forEach { port ->
             Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-              Text("${port.port}/${port.protocol}", fontFamily = FontFamily.Monospace, modifier = Modifier.width(80.dp), fontSize = 13.sp)
-              Text(port.service ?: "", modifier = Modifier.width(80.dp), fontSize = 13.sp)
-              port.banner?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1, fontSize = 11.sp) }
+              Text("${port.port}/${port.protocol}", fontFamily = FontFamily.Monospace, modifier = Modifier.width(80.dp), style = MaterialTheme.typography.bodySmall)
+              Text(port.service ?: "", modifier = Modifier.width(80.dp), style = MaterialTheme.typography.bodySmall)
+              port.banner?.let { Text(it, style = MaterialTheme.typography.labelMedium, maxLines = 1) }
             }
           }
         }
@@ -269,7 +271,7 @@ private fun DnsSheet(scanner: NetworkScanner, onDismiss: () -> Unit) {
       if (result.isNotBlank()) {
         Spacer(Modifier.height(12.dp))
         SelectionContainer {
-          Text(result, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+          Text(result, fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
         }
       }
     }

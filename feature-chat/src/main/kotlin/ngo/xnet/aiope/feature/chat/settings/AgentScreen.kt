@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -48,7 +49,7 @@ internal fun AgentScreen(dao: ChatDao, onBack: () -> Unit) {
     topBar = {
       TopAppBar(
         colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = if (ngo.xnet.aiope.feature.chat.theme.LocalThemeState.current.useBackground) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.surface),
-        title = { Text("Agent") },
+        title = { Text("Agent", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
         navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back") } },
         actions = {
           IconButton(onClick = {
@@ -72,8 +73,8 @@ internal fun AgentScreen(dao: ChatDao, onBack: () -> Unit) {
         item(key = "header_${section.key}") {
           Row(Modifier.padding(top = 16.dp, bottom = 4.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-              Text(section.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-              Text(section.description, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+              Text(section.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+              Text(section.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { section.subsections.forEach { sub -> save("$AGENT_PREFIX${sub.key}", sub.default) } }) {
               Icon(Icons.Default.Refresh, "Reset ${section.title}", tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -87,7 +88,7 @@ internal fun AgentScreen(dao: ChatDao, onBack: () -> Unit) {
               value = values[key] ?: "",
               onValueChange = { save(key, it) },
               label = { Text(sub.label) },
-              placeholder = { Text(sub.hint, fontSize = 12.sp) },
+              placeholder = { Text(sub.hint, style = MaterialTheme.typography.bodySmall) },
               modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
               minLines = 2,
               maxLines = 8,
@@ -96,12 +97,12 @@ internal fun AgentScreen(dao: ChatDao, onBack: () -> Unit) {
         }
       }
       item(key = "auto_run_prompt") {
-        Text("Auto-Run", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
+        Text("Auto-Run", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
         OutlinedTextField(
           value = values["agent_auto_run_prompt"] ?: "continue",
           onValueChange = { save("agent_auto_run_prompt", it) },
           label = { Text("Auto-run prompt") },
-          placeholder = { Text("Message sent when auto-run continues", fontSize = 12.sp) },
+          placeholder = { Text("Message sent when auto-run continues", style = MaterialTheme.typography.bodySmall) },
           modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
           singleLine = true,
         )

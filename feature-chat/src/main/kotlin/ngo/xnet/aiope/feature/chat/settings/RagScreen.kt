@@ -14,10 +14,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -141,7 +143,7 @@ internal fun RagScreen(onBack: () -> Unit) {
     contentColor = MaterialTheme.colorScheme.onSurface,
     topBar = {
       TopAppBar(
-        title = { Text("RAG Documents") },
+        title = { Text("RAG Documents", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
         colors = TopAppBarDefaults.topAppBarColors(
           containerColor = if (theme.useBackground) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.surface,
         ),

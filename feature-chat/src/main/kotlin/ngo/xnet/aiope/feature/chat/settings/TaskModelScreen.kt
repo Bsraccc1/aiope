@@ -16,21 +16,25 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ngo.xnet.aiope.core.network.*
+import ngo.xnet.aiope.feature.chat.ui.CuORadius
 
 @Composable
 internal fun TaskModelScreen(providerStore: ProviderStore, onBack: () -> Unit) {
@@ -42,7 +46,7 @@ internal fun TaskModelScreen(providerStore: ProviderStore, onBack: () -> Unit) {
   Scaffold(containerColor = if (_bgActive) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.background, contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface, topBar = {
     TopAppBar(
       colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = if (ngo.xnet.aiope.feature.chat.theme.LocalThemeState.current.useBackground) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.surface),
-      title = { Text("Default Models per Task") },
+      title = { Text("Default Models per Task", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
       navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
     )
   }) { pad ->
@@ -50,7 +54,7 @@ internal fun TaskModelScreen(providerStore: ProviderStore, onBack: () -> Unit) {
       item {
         Card(
           Modifier.fillMaxWidth().padding(vertical = 8.dp),
-          shape = RoundedCornerShape(12.dp),
+          shape = RoundedCornerShape(CuORadius.lg),
           colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
         ) {
           Column(Modifier.padding(16.dp)) {
@@ -88,8 +92,8 @@ private fun TaskCard(
 
   Card(
     Modifier.fillMaxWidth(),
-    shape = RoundedCornerShape(12.dp),
-    border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+    shape = RoundedCornerShape(CuORadius.lg),
+    border = androidx.compose.foundation.BorderStroke(0.8.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
   ) {
     Column {
       // Header — tap to expand
@@ -97,7 +101,7 @@ private fun TaskCard(
         Modifier.fillMaxWidth().clickable { expanded = !expanded },
         color = MaterialTheme.colorScheme.surface,
       ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(12.dp)) {
           Text(task.label, style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
           Text(task.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
           Spacer(Modifier.height(8.dp))
@@ -105,7 +109,8 @@ private fun TaskCard(
           // Current assignment
           Surface(
             Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
+            // Concentric with the card: lg(20) − 12dp content inset = 8dp.
+            shape = RoundedCornerShape(CuORadius.inner(CuORadius.lg, 12.dp)),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
           ) {
             Row(
@@ -145,7 +150,7 @@ private fun TaskCard(
               tc = ngo.xnet.aiope.core.network.TaskModelConfig(task.id)
               expanded = false
             },
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(CuORadius.sm),
             color = if (isDefault) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
             border = androidx.compose.foundation.BorderStroke(
               if (isDefault) 0.dp else 0.5.dp,
@@ -154,7 +159,7 @@ private fun TaskCard(
           ) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
               if (isDefault) {
-                Icon(Icons.Default.Check, "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.CheckCircle, "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
               }
               Text(
@@ -185,7 +190,7 @@ private fun TaskCard(
                   expanded = false
                 }
               },
-              shape = RoundedCornerShape(8.dp),
+              shape = RoundedCornerShape(CuORadius.sm),
               color = if (isProfileSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
               border = androidx.compose.foundation.BorderStroke(
                 if (isProfileSelected) 0.dp else 0.5.dp,
@@ -194,7 +199,7 @@ private fun TaskCard(
             ) {
               Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (isProfileSelected && models.size <= 1) {
-                  Icon(Icons.Default.Check, "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                  Icon(Icons.Default.CheckCircle, "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                   Spacer(Modifier.width(8.dp))
                 }
                 Column(Modifier.weight(1f)) {
@@ -226,17 +231,17 @@ private fun TaskCard(
                       expanded = false
                       profileExpanded = false
                     },
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(CuORadius.inner(CuORadius.sm, 4.dp)),
                     color = if (isModelSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                   ) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                       if (isModelSelected) {
-                        Icon(Icons.Default.Check, "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.CheckCircle, "Selected", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                         Spacer(Modifier.width(6.dp))
                       }
                       Text(
                         m.displayName,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         fontWeight = if (isModelSelected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
                         color = if (isModelSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                       )

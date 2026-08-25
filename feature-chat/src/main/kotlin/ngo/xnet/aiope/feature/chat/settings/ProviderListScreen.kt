@@ -9,8 +9,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import ngo.xnet.aiope.core.network.ProviderProfile
 import ngo.xnet.aiope.core.network.ProviderTemplates
 
@@ -32,7 +34,7 @@ internal fun ProviderListScreen(
     topBar = {
       TopAppBar(
         colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = if (ngo.xnet.aiope.feature.chat.theme.LocalThemeState.current.useBackground) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.surface),
-        title = { Text("Providers") },
+        title = { Text("Providers", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
         navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
         actions = { IconButton(onClick = onAdd) { Icon(Icons.Default.Add, "Add") } },
       )

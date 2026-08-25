@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import ngo.xnet.aiope.feature.chat.ui.CuORadius
 
 /** Singleton browser instance shared between panel UI and tool calls. */
 object BrowserHolder {
@@ -95,15 +96,15 @@ fun BrowserPanel(maximized: Boolean = false, onToggleMaximize: () -> Unit = {}, 
           editing = true
         },
         singleLine = true,
-        textStyle = LocalTextStyle.current.copy(color = Color.White, fontSize = 12.sp),
+        textStyle = MaterialTheme.typography.bodySmall.copy(color = Color.White),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
         keyboardActions = KeyboardActions(onGo = {
           editing = false
           scope.launch { browser.navigate(urlInput) }
         }),
-        modifier = Modifier.weight(1f).background(Color(0xFF0A0A0A), RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
+        modifier = Modifier.weight(1f).background(Color(0xFF0A0A0A), RoundedCornerShape(CuORadius.xs)).padding(horizontal = 8.dp, vertical = 6.dp),
         decorationBox = { inner ->
-          if (urlInput.isEmpty()) Text("Enter URL…", color = Color(0xFF666666), fontSize = 12.sp)
+          if (urlInput.isEmpty()) Text("Enter URL…", color = Color(0xFF666666), style = MaterialTheme.typography.bodySmall)
           inner()
         },
       )

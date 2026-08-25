@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -121,7 +122,7 @@ internal fun ToolToggleScreen(toolStore: ToolStore, onBack: () -> Unit) {
     topBar = {
       TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = if (bgActive) androidx.compose.ui.graphics.Color.Transparent else MaterialTheme.colorScheme.surface),
-        title = { Text("Tools") },
+        title = { Text("Tools", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
         navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
       )
     },
@@ -130,7 +131,7 @@ internal fun ToolToggleScreen(toolStore: ToolStore, onBack: () -> Unit) {
       item {
         var uiEnabled by remember { mutableStateOf(toolStore.isDynamicUiEnabled()) }
         ListItem(
-          headlineContent = { Text("Dynamic UI", fontSize = 14.sp) },
+          headlineContent = { Text("Dynamic UI", style = MaterialTheme.typography.bodyMedium) },
           supportingContent = { Text("Enable CuO rich interactive blocks in responses", style = MaterialTheme.typography.bodySmall) },
           trailingContent = {
             Switch(checked = uiEnabled, onCheckedChange = {
@@ -154,7 +155,7 @@ internal fun ToolToggleScreen(toolStore: ToolStore, onBack: () -> Unit) {
           val (id, desc) = tools[i]
           var enabled by remember { mutableStateOf(toolStore.isToolEnabled(id)) }
           ListItem(
-            headlineContent = { Text(id, fontSize = 14.sp) },
+            headlineContent = { Text(id, style = MaterialTheme.typography.bodyMedium) },
             supportingContent = { Text(desc, style = MaterialTheme.typography.bodySmall) },
             trailingContent = {
               Switch(checked = enabled, onCheckedChange = {

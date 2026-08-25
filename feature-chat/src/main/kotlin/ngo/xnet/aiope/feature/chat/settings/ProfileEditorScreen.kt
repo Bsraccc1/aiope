@@ -25,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,7 @@ internal fun ProfileEditor(
   Scaffold(containerColor = if (_bgActive) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.background, contentColor = androidx.compose.material3.MaterialTheme.colorScheme.onSurface, topBar = {
     TopAppBar(
       colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = if (ngo.xnet.aiope.feature.chat.theme.LocalThemeState.current.useBackground) androidx.compose.ui.graphics.Color.Transparent else androidx.compose.material3.MaterialTheme.colorScheme.surface),
-      title = { Text(p.label.ifBlank { "Edit Provider" }) },
+      title = { Text(p.label.ifBlank { "Edit Provider" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
       navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
       actions = { IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete") } },
     )
