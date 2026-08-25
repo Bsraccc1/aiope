@@ -87,7 +87,7 @@ class AgentRunWorker(
       // silently lost. runsCompleted is untouched — a skipped run is not a run, so a "5 runs" cap
       // still gets five real executions.
       if (task.wifiOnly && !isUnmetered(appContext)) {
-        val rearmed = AgentScheduler.rescheduleSkipped(appContext, task)
+        val rearmed = AgentScheduler.rescheduleSkipped(task)
         if (rearmed.nextRun == null) {
           // Nothing left to arm (cap already reached). Persist the finished state through the same
           // query the normal path uses, otherwise the row stays enabled with no alarm behind it.
@@ -111,6 +111,9 @@ class AgentRunWorker(
             true,
             "scheduled",
           )
+          // Arm only after the row is written, so a crash in between leaves a row the reschedule
+          // worker can re-arm rather than an alarm pointing at a stale time.
+          AgentScheduler.arm(appContext, rearmed)
         }
         return@withContext Result.success()
       }
@@ -173,7 +176,10 @@ class AgentRunWorker(
         nextRun = if (done) null else AgentScheduler.computeNextRun(task, now),
       )
       dao.updateScheduledTaskProgress(updated.id, updated.runsCompleted, now, updated.nextRun, updated.enabled, updated.status)
-      if (done) AgentScheduler.cancel(appContext, task.id) else AgentScheduler.schedule(appContext, updated)
+      // arm() rather than schedule(): schedule() would recompute the fire time from the clock as it
+      // runs, so the alarm and the nextRun just written to the row would disagree by however long
+      // the agent took — and the panel shows the row's value.
+      if (done) AgentScheduler.cancel(appContext, task.id) else AgentScheduler.arm(appContext, updated)
 
       val title = if (done) {
         val cap = if (task.maxRuns > 0) "$completed/${task.maxRuns}" else "1/1"

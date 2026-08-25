@@ -811,8 +811,9 @@ class ToolExecutor(
           maxRuns = (args["max_runs"] as? Number)?.toInt() ?: 0,
         )
         try {
-          val armed = AgentScheduler.schedule(app, task)
+          val armed = AgentScheduler.plan(task)
           chatDao.insertScheduledTask(armed)
+          AgentScheduler.arm(app, armed)
           val exactNote = if (!AgentScheduler.canScheduleExact(app)) {
             "\nNote: exact alarms are not permitted on this device, so runs use inexact timing and may be delayed by Doze. Enable \"Alarms & reminders\" for CuO in Android Settings for precise timing."
           } else {

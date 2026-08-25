@@ -69,7 +69,6 @@ fun ChatScreen(viewModel: ChatViewModel = hiltViewModel(), startNewConversation:
   var showShareSheet by remember { mutableStateOf(false) }
   var showFileServer by remember { mutableStateOf(false) }
   var showScanner by remember { mutableStateOf(false) }
-  var editText by remember { mutableStateOf("") }
   val context = androidx.compose.ui.platform.LocalContext.current
   val drawerState = rememberDrawerState(DrawerValue.Closed)
   val drawerScope = rememberCoroutineScope()
@@ -147,8 +146,6 @@ fun ChatScreen(viewModel: ChatViewModel = hiltViewModel(), startNewConversation:
       isInRealtimeVoice = isInRealtimeVoice,
       isVoiceListening = isVoiceListening,
       isVoiceSpeaking = isVoiceSpeaking,
-      editText = editText,
-      onEditTextChange = { editText = it },
       onOpenDrawer = { openDrawer() },
       onOpenSettings = onOpenSettings,
       onOpenHome = onOpenHome,
@@ -232,8 +229,6 @@ private fun ChatScreenBody(
   isInRealtimeVoice: Boolean,
   isVoiceListening: Boolean,
   isVoiceSpeaking: Boolean,
-  editText: String,
-  onEditTextChange: (String) -> Unit,
   onOpenDrawer: () -> Unit,
   onOpenSettings: () -> Unit,
   onOpenHome: () -> Unit,
@@ -274,15 +269,13 @@ private fun ChatScreenBody(
       onShareChat = onShareChat,
       onFileServer = onFileServer,
       onScanner = onScanner,
-      onEditMessage = { text, idx ->
-        viewModel.truncateAt(idx)
-        onEditTextChange(text)
-      },
+      // The composer text itself is set inside ChatContent, which owns that state; this only has to
+      // drop the messages being replaced.
+      onEditMessage = { idx -> viewModel.truncateAt(idx) },
       onRetry = { idx -> viewModel.retry(idx) },
       onCompact = { idx -> viewModel.compact(idx) },
       onFork = { idx -> viewModel.fork(idx) },
       onTranslate = { msgId, lang -> viewModel.translateMessage(msgId, lang) },
-      editText = editText, onEditTextChange = onEditTextChange,
       supportsRealtimeVoice = supportsRealtimeVoice,
       isInRealtimeVoice = isInRealtimeVoice,
       isVoiceListening = isVoiceListening,
@@ -381,13 +374,11 @@ private fun ChatContent(
   onFileServer: () -> Unit = {},
   onScanner: () -> Unit = {},
   onSlashAction: (String) -> Unit = {},
-  onEditMessage: (String, Int) -> Unit = { _, _ -> },
+  onEditMessage: (Int) -> Unit = {},
   onRetry: (Int) -> Unit = {},
   onCompact: (Int) -> Unit = {},
   onFork: (Int) -> Unit = {},
   onTranslate: (String, String) -> Unit = { _, _ -> },
-  editText: String = "",
-  onEditTextChange: (String) -> Unit = {},
   supportsRealtimeVoice: Boolean = false,
   isInRealtimeVoice: Boolean = false,
   isVoiceListening: Boolean = false,
@@ -436,7 +427,15 @@ private fun ChatContent(
       } else {
         MessageList(
           messages = messages, isStreaming = isStreaming,
-          onEdit = { idx -> onEditMessage(messages[idx].content, idx) },
+          // Pull the message back into the composer for editing. Setting composerText here rather
+          // than routing it through a String parameter means re-editing the same text twice works:
+          // a state channel keyed on the value itself would see no change and silently do nothing.
+          onEdit = { idx ->
+            val text = messages[idx].content
+            onEditMessage(idx)
+            composerText = text
+            slashMatches = null
+          },
           onRetry = { idx -> onRetry(idx) },
           onCompact = { idx -> onCompact(idx) },
           onFork = { idx -> onFork(idx) },
@@ -531,8 +530,8 @@ private fun ChatContent(
               ?.singleOrNull { it.name.equals(ngo.xnet.aiope.feature.chat.ui.splitSlash(text).first, ignoreCase = true) }
             if (cmd != null) runSlash(cmd, text, images) else onSend(text, images)
           },
-          onStop = onStop, isStreaming = isStreaming, editText = editText,
-          onEditTextChange = onEditTextChange, autoRun = autoRun, onAutoRunChange = onAutoRunChange,
+          onStop = onStop, isStreaming = isStreaming,
+          autoRun = autoRun, onAutoRunChange = onAutoRunChange,
           supportsRealtimeVoice = supportsRealtimeVoice, isInRealtimeVoice = isInRealtimeVoice,
           isVoiceListening = isVoiceListening, isVoiceSpeaking = isVoiceSpeaking, onToggleVoice = onToggleVoice,
           text = composerText,
@@ -621,15 +620,26 @@ private fun MessageList(
 // ── Input bar ──
 
 @Composable
-private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit = {}, isStreaming: Boolean, editText: String = "", onEditTextChange: (String) -> Unit = {}, text: String = "", onTextChange: (String) -> Unit = {}, autoRun: Boolean = false, onAutoRunChange: (Boolean) -> Unit = {}, supportsRealtimeVoice: Boolean = false, isInRealtimeVoice: Boolean = false, isVoiceListening: Boolean = false, isVoiceSpeaking: Boolean = false, onToggleVoice: () -> Unit = {}) {
+private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit = {}, isStreaming: Boolean, text: String = "", onTextChange: (String) -> Unit = {}, autoRun: Boolean = false, onAutoRunChange: (Boolean) -> Unit = {}, supportsRealtimeVoice: Boolean = false, isInRealtimeVoice: Boolean = false, isVoiceListening: Boolean = false, isVoiceSpeaking: Boolean = false, onToggleVoice: () -> Unit = {}) {
   val pendingImages = remember { mutableStateListOf<String>() }
-
-  LaunchedEffect(editText) {
-    if (editText.isNotBlank()) {
-      onTextChange(editText)
-      onEditTextChange("")
-    }
+  // File extraction and dictation both finish long after the click that started them and append to
+  // the draft. Read the draft through these so a user who kept typing meanwhile doesn't get their
+  // words replaced by the value captured when the picker opened.
+  val currentText = androidx.compose.runtime.rememberUpdatedState(text)
+  val appendText = androidx.compose.runtime.rememberUpdatedState(onTextChange)
+  // Caret: the hoisted value is a String and so carries no selection. Track it here, and when the
+  // text changes to something this field did not type (slash pick, Edit & Resend), put the caret at
+  // the end — otherwise it stays at its old offset and the next keystroke lands mid-word.
+  var selection by remember { mutableStateOf(0) }
+  var lastEmitted by remember { mutableStateOf(text) }
+  if (text != lastEmitted) {
+    selection = text.length
+    lastEmitted = text
   }
+  val fieldValue = androidx.compose.ui.text.input.TextFieldValue(
+    text = text,
+    selection = androidx.compose.ui.text.TextRange(selection.coerceIn(0, text.length)),
+  )
   val context = androidx.compose.ui.platform.LocalContext.current
   val scope = androidx.compose.runtime.rememberCoroutineScope()
   val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -641,7 +651,7 @@ private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit
         pendingImages.add(it.toString())
       } else {
         scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-          val result = if (mime == "application/pdf") {
+          val extractedBody = if (mime == "application/pdf") {
             try {
               val bytes = context.contentResolver.openInputStream(it)?.use { s -> s.readBytes() } ?: byteArrayOf()
               val name = it.lastPathSegment ?: "document.pdf"
@@ -650,20 +660,25 @@ private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit
               val pageCount = doc.numberOfPages
               val extracted = com.tom_roush.pdfbox.text.PDFTextStripper().getText(doc).take(100000)
               doc.close()
-              (if (text.isNotBlank()) "\n" else "") + "[$name - $pageCount pages]\n${extracted.ifBlank { "[No extractable text]" }}"
+              "[$name - $pageCount pages]\n${extracted.ifBlank { "[No extractable text]" }}"
             } catch (e: Exception) {
-              "\n[PDF error: ${e.message}]"
+              "[PDF error: ${e.message}]"
             }
           } else {
             try {
               val content = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText()?.take(10000) ?: ""
               val name = it.lastPathSegment ?: "file"
-              (if (text.isNotBlank()) "\n" else "") + "[$name]\n$content"
+              "[$name]\n$content"
             } catch (_: Exception) {
-              "\n[Attached: $it]"
+              "[Attached: $it]"
             }
           }
-          kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onTextChange(text + result) }
+          kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+            // Re-read the draft here, not at launch time: extraction of a large PDF takes seconds
+            // and anything typed in the meantime would otherwise be overwritten.
+            val draft = currentText.value
+            appendText.value(draft + (if (draft.isNotBlank()) "\n" else "") + extractedBody)
+          }
         }
       }
     }
@@ -693,8 +708,12 @@ private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit
     // Borderless field: the glass pane around the composer already provides the frame, so an
     // outlined box inside it reads as a double border.
     TextField(
-      value = text,
-      onValueChange = onTextChange,
+      value = fieldValue,
+      onValueChange = {
+        selection = it.selection.start
+        lastEmitted = it.text
+        onTextChange(it.text)
+      },
       modifier = Modifier.fillMaxWidth(),
       placeholder = { Text("Message CuO…", fontSize = 15.sp) },
       maxLines = 6,
@@ -741,7 +760,10 @@ private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit
         if (result.resultCode == android.app.Activity.RESULT_OK) {
           val spoken = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
           if (!spoken.isNullOrBlank()) {
-            onTextChange(text + (if (text.isNotBlank()) " " else "") + spoken)
+            // Same reason as the file picker: dictation returns after a detour through another
+            // activity, so the draft is re-read now rather than captured when the mic was tapped.
+            val draft = currentText.value
+            appendText.value(draft + (if (draft.isNotBlank()) " " else "") + spoken)
           }
         }
       }

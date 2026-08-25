@@ -89,4 +89,41 @@ class AgentSchedulerSkipTest {
     // "finished". The skip path must agree, or a corrupt row would be re-armed every 15 minutes.
     assertNull(AgentScheduler.nextRunAfterSkip(task("bogus"), now()))
   }
+
+  @Test
+  fun rescheduleSkippedKeepsRunsCompletedAndStaysEnabled() {
+    // A skipped run is not a run: the cap must still get its full number of real executions.
+    val original = task("interval", intervalValue = 30, runsCompleted = 2, maxRuns = 5)
+    val rearmed = AgentScheduler.rescheduleSkipped(original)
+    assertEquals(2, rearmed.runsCompleted)
+    assertTrue(rearmed.enabled)
+    assertTrue("must carry a fire time", rearmed.nextRun != null)
+  }
+
+  @Test
+  fun rescheduleSkippedFinishesAnExhaustedTask() {
+    val rearmed = AgentScheduler.rescheduleSkipped(task("daily", maxRuns = 3, runsCompleted = 3))
+    assertNull(rearmed.nextRun)
+    assertEquals(false, rearmed.enabled)
+    assertEquals("finished", rearmed.status)
+  }
+
+  @Test
+  fun planIsPureAndProducesTheFireTimeItReports() {
+    // plan() must not touch AlarmManager (no Context taken), so it is safe to call before the DB
+    // write; arm() is what needs a Context and runs after.
+    val planned = AgentScheduler.plan(task("interval", intervalValue = 2, intervalUnit = "hour"))
+    assertTrue(planned.enabled)
+    val next = planned.nextRun!!
+    val expected = System.currentTimeMillis() + 2 * 60 * 60 * 1000L
+    assertTrue("within a second of two hours out", Math.abs(next - expected) < 1000L)
+  }
+
+  @Test
+  fun planFinishesRatherThanArmingAnExhaustedTask() {
+    val planned = AgentScheduler.plan(task("daily", maxRuns = 1, runsCompleted = 1))
+    assertNull(planned.nextRun)
+    assertEquals(false, planned.enabled)
+    assertEquals("finished", planned.status)
+  }
 }

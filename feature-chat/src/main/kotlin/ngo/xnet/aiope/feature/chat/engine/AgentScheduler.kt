@@ -47,22 +47,15 @@ object AgentScheduler {
   }
 
   /**
-   * Compute the next fire time and (re)arm the alarm for [task].
-   * Returns the entity with [ScheduledTaskEntity.nextRun] set, or a disabled
-   * copy when the schedule is complete (max-runs cap reached / non-recurring).
-   * Uses exact alarm when permitted, else inexact fallback.
+   * Decide the next fire time for [task] without touching AlarmManager.
+   *
+   * Returns the entity with [ScheduledTaskEntity.nextRun] set, or a disabled copy when the schedule
+   * is complete (max-runs cap reached / non-recurring). Callers persist the result and then call
+   * [arm]; see [arm] for why the write has to come first.
    */
-  fun schedule(context: Context, task: ScheduledTaskEntity): ScheduledTaskEntity {
+  fun plan(task: ScheduledTaskEntity): ScheduledTaskEntity {
     val next = computeNextRun(task) ?: return task.copy(enabled = false, nextRun = null, status = "finished")
-    val updated = task.copy(nextRun = next)
-    val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    val pi = pendingIntent(context, task.id)
-    if (canScheduleExact(context)) {
-      am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pi)
-    } else {
-      am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pi)
-    }
-    return updated
+    return task.copy(nextRun = next)
   }
 
   /**
@@ -72,10 +65,21 @@ object AgentScheduler {
    * interval task whose value is minutes would retry in a tight loop while the user stays on data.
    * Retry no sooner than [SKIP_RETRY_FLOOR_MS], and never later than the schedule's own next slot.
    */
-  fun rescheduleSkipped(context: Context, task: ScheduledTaskEntity): ScheduledTaskEntity {
+  fun rescheduleSkipped(task: ScheduledTaskEntity): ScheduledTaskEntity {
     val next = nextRunAfterSkip(task, System.currentTimeMillis())
       ?: return task.copy(enabled = false, nextRun = null, status = "finished")
+    return task.copy(nextRun = next)
+  }
 
+  /**
+   * Arm the alarm for a task whose [ScheduledTaskEntity.nextRun] is already decided and persisted.
+   *
+   * Split from the compute step so the caller can write the row first: if the process dies between
+   * the two, a pending alarm with no matching row is worse than a row with no alarm, because
+   * [AgentRescheduleWorker] re-arms from the DB on next start but nothing reconciles the reverse.
+   */
+  fun arm(context: Context, task: ScheduledTaskEntity) {
+    val next = task.nextRun ?: return
     val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val pi = pendingIntent(context, task.id)
     if (canScheduleExact(context)) {
@@ -83,7 +87,6 @@ object AgentScheduler {
     } else {
       am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pi)
     }
-    return task.copy(nextRun = next)
   }
 
   /** Minimum wait before retrying a Wi-Fi-gated run, so a metered stretch can't spin the CPU. */

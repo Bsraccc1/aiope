@@ -21,10 +21,19 @@ class AgentRescheduleWorker(
     val db = AgentDb.get(applicationContext)
     try {
       for (task in db.chatDao().getEnabledScheduledTasks()) {
-        val updated = AgentScheduler.schedule(applicationContext, task)
-        if (updated.nextRun != task.nextRun) {
-          db.chatDao().updateScheduledTaskRun(updated.id, updated.lastRun, updated.nextRun)
+        // A stored nextRun still in the future is the user's schedule; keep it and just re-arm the
+        // alarm that was lost to the reboot. Recomputing would push a daily 09:00 task to tomorrow
+        // whenever the phone restarted before it fired.
+        val updated = if (task.nextRun != null && task.nextRun > System.currentTimeMillis()) {
+          task
+        } else {
+          AgentScheduler.plan(task).also { planned ->
+            if (planned.nextRun != task.nextRun) {
+              db.chatDao().updateScheduledTaskRun(planned.id, planned.lastRun, planned.nextRun)
+            }
+          }
         }
+        AgentScheduler.arm(applicationContext, updated)
       }
       Result.success()
     } catch (e: Exception) {

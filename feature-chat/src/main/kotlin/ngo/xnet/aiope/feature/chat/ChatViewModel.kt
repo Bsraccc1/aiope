@@ -889,8 +889,9 @@ class ChatViewModel @Inject constructor(
 
   fun saveScheduledTask(task: ngo.xnet.aiope.feature.chat.db.ScheduledTaskEntity) {
     viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-      val updated = ngo.xnet.aiope.feature.chat.engine.AgentScheduler.schedule(getApplication(), task)
+      val updated = ngo.xnet.aiope.feature.chat.engine.AgentScheduler.plan(task)
       chatDao.insertScheduledTask(updated)
+      ngo.xnet.aiope.feature.chat.engine.AgentScheduler.arm(getApplication(), updated)
       _scheduledTasks.value = chatDao.getScheduledTasks()
     }
   }
