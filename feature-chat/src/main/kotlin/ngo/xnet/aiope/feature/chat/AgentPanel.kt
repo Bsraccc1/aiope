@@ -613,6 +613,7 @@ private fun AddTimerDialog(
   }
   var dayOfMonth by remember { mutableStateOf(editing?.dayOfMonth ?: 1) }
   var maxRuns by remember { mutableStateOf(editing?.maxRuns ?: 0) }
+  var wifiOnly by remember { mutableStateOf(editing?.wifiOnly ?: false) }
   var selectedTools by remember {
     mutableStateOf(
       editing?.tools?.takeIf { it.isNotBlank() }?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: allTimerTools,
@@ -726,6 +727,20 @@ private fun AddTimerDialog(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
           NumberRoller(maxRuns, 0..60, "max runs (0 = unlimited)", { maxRuns = it })
         }
+        Row(
+          Modifier.fillMaxWidth().clickable { wifiOnly = !wifiOnly }.padding(vertical = 4.dp),
+          verticalAlignment = Alignment.CenterVertically,
+        ) {
+          Column(Modifier.weight(1f)) {
+            Text("Wi-Fi only", fontSize = 12.sp, color = Color(0xFFCCCCCC))
+            Text(
+              "Skip the run on mobile data; reschedules for the next slot.",
+              fontSize = 10.sp,
+              color = Color(0xFF888888),
+            )
+          }
+          Switch(checked = wifiOnly, onCheckedChange = { wifiOnly = it })
+        }
 
         SectionHeader("Tools")
         timerToolGroups.forEach { (group, tools) ->
@@ -767,6 +782,7 @@ private fun AddTimerDialog(
               timeHour = timeHour,
               timeMinute = timeMinute,
               daysOfWeek = days,
+              wifiOnly = wifiOnly,
               dayOfMonth = dayOfMonth,
               maxRuns = maxRuns,
             ),

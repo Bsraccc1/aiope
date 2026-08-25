@@ -74,6 +74,8 @@ import ngo.xnet.aiope.feature.chat.engine.AgentMode
 @Composable
 fun ChatTopBar(
   modelLabel: String,
+  contextUsed: Int = 0,
+  contextLimit: Int = 0,
   onOpenDrawer: () -> Unit,
   onNewChat: () -> Unit,
   onGetModels: () -> List<ModelDef>,
@@ -153,6 +155,10 @@ fun ChatTopBar(
         }
       }
 
+      // Context indicator sits beside the model name: both answer "can this conversation keep
+      // going as-is?". Exact token counts live in the overflow, where there's room for them.
+      ContextIndicator(used = contextUsed, limit = contextLimit, modifier = Modifier.padding(end = 2.dp))
+
       IconButton(onClick = onNewChat, modifier = Modifier.size(40.dp)) {
         Icon(Icons.Default.Add, "New chat", Modifier.size(20.dp), tint = cs.onSurface)
       }
@@ -175,6 +181,10 @@ fun ChatTopBar(
           PanelItem("Terminal", Icons.Default.Terminal, terminalVisible) {
             onToggleTerminal()
             showOverflow = false
+          }
+          if (contextLimit > 0) {
+            ContextDetailRow(contextUsed, contextLimit, Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+            HorizontalDivider()
           }
           PanelItem("Agents", Icons.Default.SmartToy, agentPanelVisible) {
             onToggleAgentPanel()

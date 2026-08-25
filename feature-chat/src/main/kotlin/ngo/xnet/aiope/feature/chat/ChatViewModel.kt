@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ngo.xnet.aiope.core.model.RemoteToolBridge
@@ -936,11 +937,58 @@ class ChatViewModel @Inject constructor(
     }
   }
 
+  /** Live context usage: tokens in the conversation vs the model's window. */
+  data class ContextUsage(val used: Int, val limit: Int) {
+    val fraction: Float get() = if (limit > 0) (used.toFloat() / limit).coerceIn(0f, 1f) else 0f
+  }
+
+  private val _contextUsage = MutableStateFlow(ContextUsage(0, 0))
+  val contextUsage = _contextUsage.asStateFlow()
+
+  /** Latest usage recompute; cancel-and-replace so a slow count can't overwrite a newer one. */
+  private var contextUsageJob: kotlinx.coroutines.Job? = null
+
+  /**
+   * Per-message token counts, keyed by message id and the model that tokenised it.
+   *
+   * Without this, every turn re-tokenises the whole thread — BPE over a few hundred KB, twice per
+   * assistant turn (once from the messages.size effect, once from [maybeAutoCompact]). Only the
+   * streaming message's content actually changes, so the length is part of the key: a changed
+   * message misses the cache and is recounted, an unchanged one is free.
+   */
+  private val tokenCountCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+  /** Token count for the whole thread under [mc]'s tokenizer. */
+  private fun countUsage(mc: ModelConfig): ContextUsage {
+    val used = _messages.value.sumOf { msg ->
+      tokenCountCache.getOrPut("${msg.id}:${mc.modelId}:${msg.content.length}") {
+        TokenCounter.count(msg.content, mc.modelId)
+      }
+    }
+    // The key includes content length, so a long thread accumulates one stale entry per streamed
+    // chunk. Drop everything once it outgrows any plausible thread rather than tracking evictions.
+    if (tokenCountCache.size > TOKEN_CACHE_MAX) tokenCountCache.clear()
+    return ContextUsage(used, mc.contextTokens)
+  }
+
+  /** Recompute the indicator from the current messages and the active model's window. */
+  fun refreshContextUsage() {
+    contextUsageJob?.cancel()
+    contextUsageJob = viewModelScope.launch(Dispatchers.IO) {
+      val mc = runCatching { providerStore.getActive().activeModelConfig() }.getOrNull() ?: return@launch
+      val usage = countUsage(mc)
+      // The send path writes this flow synchronously via maybeAutoCompact; only publish if this
+      // coroutine is still the current one, so an older count can't clobber a newer value.
+      if (coroutineContext.isActive) _contextUsage.value = usage
+    }
+  }
+
   /** Compact: summarize messages 0..atIndex into a single context message */
   private fun maybeAutoCompact(mc: ModelConfig) {
-    if (!mc.autoCompact) return
     val msgs = _messages.value
-    val totalTokens = msgs.sumOf { TokenCounter.count(it.content, mc.modelId) }
+    _contextUsage.value = countUsage(mc)
+    if (!mc.autoCompact) return
+    val totalTokens = _contextUsage.value.used
     val threshold = mc.contextTokens * 95 / 100 // 95% of token limit
     if (totalTokens > threshold && msgs.size > 4) {
       // Compact everything except the last 3 messages (preserves live conversational tail)
@@ -1391,5 +1439,10 @@ $remoteCtx"""
   override fun onCleared() {
     super.onCleared()
     kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) { remoteToolBridge.disconnectAll() }
+  }
+
+  private companion object {
+    /** Entries kept before the token-count cache is dropped wholesale. */
+    const val TOKEN_CACHE_MAX = 512
   }
 }

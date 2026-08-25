@@ -140,6 +140,9 @@ data class ScheduledTaskEntity(
   val reportMode: String = "notification", // notification, conversation, both
   val conversationId: String? = null,
   val enabled: Boolean = true,
+  // When true the run is skipped (and re-armed) unless the device is on an unmetered network, so a
+  // chatty agent can't burn mobile data. Default false keeps existing tasks behaving as before.
+  val wifiOnly: Boolean = false,
   val lastRun: Long? = null,
   val nextRun: Long? = null,
   val createdAt: Long = System.currentTimeMillis(),
@@ -385,7 +388,7 @@ interface ChatDao {
     AgentEntity::class, AgentTaskEntity::class, ScheduledTaskEntity::class, TaskRunEntity::class,
     GoalEntity::class, SkillEntity::class,
   ],
-  version = 11,
+  version = 12,
 )
 abstract class ChatDatabase : RoomDatabase() {
   abstract fun chatDao(): ChatDao

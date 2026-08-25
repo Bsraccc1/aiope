@@ -65,6 +65,47 @@ object AgentScheduler {
     return updated
   }
 
+  /**
+   * Re-arm after a run was skipped without executing (Wi-Fi-only task on mobile data).
+   *
+   * [computeNextRun] is wrong for this case: `"once"` would be pushed 60s out forever, and an
+   * interval task whose value is minutes would retry in a tight loop while the user stays on data.
+   * Retry no sooner than [SKIP_RETRY_FLOOR_MS], and never later than the schedule's own next slot.
+   */
+  fun rescheduleSkipped(context: Context, task: ScheduledTaskEntity): ScheduledTaskEntity {
+    val next = nextRunAfterSkip(task, System.currentTimeMillis())
+      ?: return task.copy(enabled = false, nextRun = null, status = "finished")
+
+    val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val pi = pendingIntent(context, task.id)
+    if (canScheduleExact(context)) {
+      am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pi)
+    } else {
+      am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next, pi)
+    }
+    return task.copy(nextRun = next)
+  }
+
+  /** Minimum wait before retrying a Wi-Fi-gated run, so a metered stretch can't spin the CPU. */
+  private const val SKIP_RETRY_FLOOR_MS = 15 * 60 * 1000L
+
+  /**
+   * Pure next-fire-time decision for a skipped run, split out from [rescheduleSkipped] so it can be
+   * tested without an Android [Context].
+   */
+  fun nextRunAfterSkip(task: ScheduledTaskEntity, now: Long): Long? {
+    val natural = computeNextRun(task, now) ?: return null
+    val floor = now + SKIP_RETRY_FLOOR_MS
+    return when (task.scheduleType) {
+      // Wall-clock schedules keep their slot: a daily 09:00 task retries tomorrow at 09:00, not in
+      // 15 minutes, because "daily at 9" is the user's intent and data may still be metered.
+      "daily", "weekly", "monthly" -> natural
+
+      // Fire-once and interval tasks retry on the floor so a metered stretch can't spin the CPU.
+      else -> maxOf(floor, natural)
+    }
+  }
+
   fun cancel(context: Context, taskId: String) {
     val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     am.cancel(pendingIntent(context, taskId))

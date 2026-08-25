@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import ngo.xnet.aiope.feature.chat.db.ChatDatabase
 import ngo.xnet.aiope.feature.chat.di.MIGRATION_10_11
+import ngo.xnet.aiope.feature.chat.di.MIGRATION_11_12
 import ngo.xnet.aiope.feature.chat.di.MIGRATION_1_2
 import ngo.xnet.aiope.feature.chat.di.MIGRATION_2_3
 import ngo.xnet.aiope.feature.chat.di.MIGRATION_3_4
@@ -29,7 +30,7 @@ object AgentDb {
 
   fun get(context: Context): ChatDatabase = instance ?: synchronized(this) {
     instance ?: Room.databaseBuilder(context.applicationContext, ChatDatabase::class.java, "aiope-chat.db")
-      .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+      .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
       .build()
       .also { instance = it }
   }

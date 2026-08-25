@@ -63,6 +63,18 @@ class AgentRunWorker(
     private const val MAX_RETRIES = 3
   }
 
+  /**
+   * True when the active network is unmetered (Wi-Fi, Ethernet). [NetworkCapabilities] is the
+   * reliable signal here: transport type alone reports Wi-Fi for metered hotspots, which is exactly
+   * the case a data-conscious user wants excluded.
+   */
+  private fun isUnmetered(context: Context): Boolean {
+    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+      ?: return false
+    val caps = cm.getNetworkCapabilities(cm.activeNetwork ?: return false) ?: return false
+    return caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+  }
+
   override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
     val taskId = inputData.getString(KEY_TASK_ID) ?: return@withContext Result.failure()
     val db = buildDb()
@@ -70,6 +82,38 @@ class AgentRunWorker(
       val dao = db.chatDao()
       val task = dao.getScheduledTaskById(taskId) ?: return@withContext Result.success()
       if (!task.enabled) return@withContext Result.success()
+
+      // Wi-Fi-only tasks: skip the run rather than spend mobile data, but re-arm so the task isn't
+      // silently lost. runsCompleted is untouched — a skipped run is not a run, so a "5 runs" cap
+      // still gets five real executions.
+      if (task.wifiOnly && !isUnmetered(appContext)) {
+        val rearmed = AgentScheduler.rescheduleSkipped(appContext, task)
+        if (rearmed.nextRun == null) {
+          // Nothing left to arm (cap already reached). Persist the finished state through the same
+          // query the normal path uses, otherwise the row stays enabled with no alarm behind it.
+          dao.updateScheduledTaskProgress(
+            task.id,
+            task.runsCompleted,
+            task.lastRun ?: System.currentTimeMillis(),
+            null,
+            false,
+            "finished",
+          )
+          AgentScheduler.cancel(appContext, task.id)
+        } else {
+          // Same query the normal path uses, so status is written too: a task that once failed must
+          // not keep showing "failed" in the panel while it is in fact healthily armed.
+          dao.updateScheduledTaskProgress(
+            task.id,
+            task.runsCompleted,
+            task.lastRun ?: System.currentTimeMillis(),
+            rearmed.nextRun,
+            true,
+            "scheduled",
+          )
+        }
+        return@withContext Result.success()
+      }
 
       val now = System.currentTimeMillis()
       val runNumber = dao.countTaskRuns(taskId) + 1

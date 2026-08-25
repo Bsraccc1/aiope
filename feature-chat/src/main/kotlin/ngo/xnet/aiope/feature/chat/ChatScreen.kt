@@ -57,6 +57,9 @@ fun ChatScreen(viewModel: ChatViewModel = hiltViewModel(), startNewConversation:
   val agentMode by viewModel.agentMode.collectAsStateWithLifecycle()
   val autoRun by viewModel.autoRun.collectAsStateWithLifecycle()
   val subagentTasks by viewModel.subagentManager.tasks.collectAsStateWithLifecycle()
+  val contextUsage by viewModel.contextUsage.collectAsStateWithLifecycle()
+  // Keyed on turn count, not content: streaming deltas would re-tokenise the whole thread per frame.
+  LaunchedEffect(messages.size) { viewModel.refreshContextUsage() }
   val conversations by viewModel.conversations.collectAsStateWithLifecycle()
   val activeConversationId by viewModel.activeConversationId.collectAsStateWithLifecycle()
   val config = LocalConfiguration.current
@@ -125,6 +128,7 @@ fun ChatScreen(viewModel: ChatViewModel = hiltViewModel(), startNewConversation:
       viewModel = viewModel,
       messages = messages,
       isStreaming = isStreaming,
+      contextUsage = contextUsage,
       isLandscape = isLandscape,
       imeVisible = imeVisible,
       listState = listState,
@@ -209,6 +213,7 @@ private fun ChatScreenBody(
   viewModel: ChatViewModel,
   messages: List<ChatMessage>,
   isStreaming: Boolean,
+  contextUsage: ChatViewModel.ContextUsage,
   isLandscape: Boolean,
   imeVisible: Boolean,
   listState: androidx.compose.foundation.lazy.LazyListState,
@@ -239,6 +244,7 @@ private fun ChatScreenBody(
   val chat: @Composable (Modifier) -> Unit = { mod ->
     ChatContent(
       messages = messages, isStreaming = isStreaming,
+      contextUsed = contextUsage.used, contextLimit = contextUsage.limit,
       agentMode = agentMode, onModeChange = { viewModel.setAgentMode(it) },
       autoRun = autoRun, onAutoRunChange = { viewModel.setAutoRun(it) },
       subagentTasks = subagentTasks,
@@ -249,6 +255,13 @@ private fun ChatScreenBody(
       listState = listState,
       onSend = { text, imgs -> viewModel.send(text, imgs) },
       onStop = { viewModel.cancelStreaming() },
+      onSlashAction = { name ->
+        when (name) {
+          "compact" -> viewModel.compact(messages.size - 4)
+          "clear" -> viewModel.newConversation()
+          "schedule" -> viewModel.toggleAgentPanel()
+        }
+      },
       onToggleTerminal = viewModel::toggleTerminal,
       onToggleBrowser = { viewModel.toggleBrowser() },
       onToggleAgentPanel = { viewModel.toggleAgentPanel() },
@@ -359,12 +372,15 @@ private fun ChatContent(
   onOpenDrawer: () -> Unit = {},
   onNewChat: () -> Unit = {},
   onOpenSettings: () -> Unit,
+  contextUsed: Int = 0,
+  contextLimit: Int = 0,
   onGetModels: () -> List<ngo.xnet.aiope.core.network.ModelDef>,
   onGetActiveModelId: () -> String,
   onSwitchModel: (String) -> Unit,
   onShareChat: () -> Unit,
   onFileServer: () -> Unit = {},
   onScanner: () -> Unit = {},
+  onSlashAction: (String) -> Unit = {},
   onEditMessage: (String, Int) -> Unit = { _, _ -> },
   onRetry: (Int) -> Unit = {},
   onCompact: (Int) -> Unit = {},
@@ -380,12 +396,20 @@ private fun ChatContent(
   modifier: Modifier = Modifier,
 ) {
   val theme = ngo.xnet.aiope.feature.chat.theme.LocalThemeState.current
+  // Composer text lives here, not inside ChatInput, because the slash sheet above the composer has
+  // to read and rewrite it. `slashMatches == null` means "not typing a command" (sheet hidden);
+  // an empty list means "typing one that matches nothing".
+  // rememberSaveable so a half-typed message survives process death, not just recomposition.
+  var composerText by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+  var slashMatches by remember { mutableStateOf<List<ngo.xnet.aiope.feature.chat.ui.SlashCommand>?>(null) }
   Box(modifier.background(MaterialTheme.colorScheme.background)) {
     ngo.xnet.aiope.feature.chat.theme.ChatBackground(theme)
     Column(Modifier.fillMaxSize().alpha(theme.uiOpacity)) {
       // ── Top bar: drawer · model · new chat · overflow ──
       ngo.xnet.aiope.feature.chat.ui.ChatTopBar(
         modelLabel = modelLabel,
+        contextUsed = contextUsed,
+        contextLimit = contextLimit,
         onOpenDrawer = onOpenDrawer,
         onNewChat = onNewChat,
         onGetModels = onGetModels,
@@ -456,6 +480,39 @@ private fun ChatContent(
       }
 
       // ── Mode selector + composer, grouped at the bottom where the user is typing ──
+      // Slash autocomplete floats directly above the composer, so the two read as one control.
+      // Picking a PROMPT command sends immediately; ACTION commands run locally and never reach
+      // the model.
+      // Running a command, whether it was picked from the sheet or just typed and sent. Both paths
+      // land here so `/tools` + Send behaves the same as `/tools` + tap, instead of transmitting the
+      // literal slash text to the model.
+      val runSlash: (ngo.xnet.aiope.feature.chat.ui.SlashCommand, String, List<String>) -> Unit =
+        { cmd, typed, images ->
+          slashMatches = null
+          when (cmd.kind) {
+            ngo.xnet.aiope.feature.chat.ui.SlashKind.ACTION -> {
+              composerText = ""
+              onSlashAction(cmd.name)
+            }
+
+            ngo.xnet.aiope.feature.chat.ui.SlashKind.PROMPT -> {
+              // Commands taking an argument need the user to type it first; until there is one, just
+              // complete the text for them rather than sending "the above" as the query.
+              val hasArg = ngo.xnet.aiope.feature.chat.ui.splitSlash(typed).second.isNotEmpty()
+              if (cmd.expansion.contains("%s") && !hasArg) {
+                composerText = "/${cmd.name} "
+              } else {
+                composerText = ""
+                onSend(ngo.xnet.aiope.feature.chat.ui.expandSlash(cmd, typed), images)
+              }
+            }
+          }
+        }
+
+      ngo.xnet.aiope.feature.chat.ui.SlashCommandSheet(
+        matches = slashMatches.orEmpty(),
+        onPick = { cmd -> runSlash(cmd, composerText, emptyList()) },
+      )
       Row(
         Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -466,7 +523,24 @@ private fun ChatContent(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
         shape = RoundedCornerShape(CuORadius.xl),
       ) {
-        ChatInput(onSend = onSend, onStop = onStop, isStreaming = isStreaming, editText = editText, onEditTextChange = onEditTextChange, autoRun = autoRun, onAutoRunChange = onAutoRunChange, supportsRealtimeVoice = supportsRealtimeVoice, isInRealtimeVoice = isInRealtimeVoice, isVoiceListening = isVoiceListening, isVoiceSpeaking = isVoiceSpeaking, onToggleVoice = onToggleVoice)
+        ChatInput(
+          onSend = { text, images ->
+            // An exactly-named command typed straight into the composer expands here; anything else
+            // (including a partial name like "/too") is sent as written.
+            val cmd = ngo.xnet.aiope.feature.chat.ui.matchSlash(text)
+              ?.singleOrNull { it.name.equals(ngo.xnet.aiope.feature.chat.ui.splitSlash(text).first, ignoreCase = true) }
+            if (cmd != null) runSlash(cmd, text, images) else onSend(text, images)
+          },
+          onStop = onStop, isStreaming = isStreaming, editText = editText,
+          onEditTextChange = onEditTextChange, autoRun = autoRun, onAutoRunChange = onAutoRunChange,
+          supportsRealtimeVoice = supportsRealtimeVoice, isInRealtimeVoice = isInRealtimeVoice,
+          isVoiceListening = isVoiceListening, isVoiceSpeaking = isVoiceSpeaking, onToggleVoice = onToggleVoice,
+          text = composerText,
+          onTextChange = {
+            composerText = it
+            slashMatches = ngo.xnet.aiope.feature.chat.ui.matchSlash(it)
+          },
+        )
       }
     }
   }
@@ -547,13 +621,12 @@ private fun MessageList(
 // ── Input bar ──
 
 @Composable
-private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit = {}, isStreaming: Boolean, editText: String = "", onEditTextChange: (String) -> Unit = {}, autoRun: Boolean = false, onAutoRunChange: (Boolean) -> Unit = {}, supportsRealtimeVoice: Boolean = false, isInRealtimeVoice: Boolean = false, isVoiceListening: Boolean = false, isVoiceSpeaking: Boolean = false, onToggleVoice: () -> Unit = {}) {
-  var text by remember { mutableStateOf("") }
+private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit = {}, isStreaming: Boolean, editText: String = "", onEditTextChange: (String) -> Unit = {}, text: String = "", onTextChange: (String) -> Unit = {}, autoRun: Boolean = false, onAutoRunChange: (Boolean) -> Unit = {}, supportsRealtimeVoice: Boolean = false, isInRealtimeVoice: Boolean = false, isVoiceListening: Boolean = false, isVoiceSpeaking: Boolean = false, onToggleVoice: () -> Unit = {}) {
   val pendingImages = remember { mutableStateListOf<String>() }
 
   LaunchedEffect(editText) {
     if (editText.isNotBlank()) {
-      text = editText
+      onTextChange(editText)
       onEditTextChange("")
     }
   }
@@ -590,7 +663,7 @@ private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit
               "\n[Attached: $it]"
             }
           }
-          kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { text = text + result }
+          kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { onTextChange(text + result) }
         }
       }
     }
@@ -621,7 +694,7 @@ private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit
     // outlined box inside it reads as a double border.
     TextField(
       value = text,
-      onValueChange = { text = it },
+      onValueChange = onTextChange,
       modifier = Modifier.fillMaxWidth(),
       placeholder = { Text("Message CuO…", fontSize = 15.sp) },
       maxLines = 6,
@@ -668,7 +741,7 @@ private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit
         if (result.resultCode == android.app.Activity.RESULT_OK) {
           val spoken = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
           if (!spoken.isNullOrBlank()) {
-            text = text + (if (text.isNotBlank()) " " else "") + spoken
+            onTextChange(text + (if (text.isNotBlank()) " " else "") + spoken)
           }
         }
       }
@@ -711,7 +784,7 @@ private fun ChatInput(onSend: (String, List<String>) -> Unit, onStop: () -> Unit
             onStop()
           } else if (canSend) {
             onSend(text.trim(), pendingImages.toList())
-            text = ""
+            onTextChange("")
             pendingImages.clear()
           }
         },
